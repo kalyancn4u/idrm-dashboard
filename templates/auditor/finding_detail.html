@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, empty_state, reltime, section %}
+
+{% block title %}{{ finding.code }} · Auditor{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('auditor.dashboard') }}">Auditor</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb"><a href="{{ url_for('auditor.findings') }}">Findings</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">{{ finding.code }}</span>
+{% endblock %}
+
+{% block content %}
+
+<div class="finding-head card sev-border-{{ finding.severity }}">
+  <div class="finding-head-main">
+    <div class="chip-row">
+      {{ sev_badge(finding.severity) }}
+      {{ status_badge(finding.status) }}
+      {% if finding.is_overdue %}<span class="badge badge-error">OVERDUE</span>{% endif %}
+      <span class="badge badge-info">{{ finding.code }}</span>
+      <span class="badge badge-review">{{ finding.rule.code if finding.rule else '—' }}</span>
+    </div>
+    <h1 class="finding-title">{{ finding.title }}</h1>
+    {% if finding.description %}<p class="finding-desc">{{ finding.description }}</p>{% endif %}
+  </div>
+  <div class="finding-head-side">
+    <span class="score-label">Risk points</span>
+    <span class="score-big">{{ '%.0f'|format(finding.risk_score or 0) }}</span>
+  </div>
+</div>
+
+<div class="card mt-6 audit-notice">
+  <div class="alert-icon">🔒</div>
+  <div class="alert-content">
+    <div class="alert-title">Read-only view</div>
+    <div class="alert-message">This examination has been recorded in the audit trail.</div>
+  </div>
+</div>
+
+<div class="grid grid-3 mt-6">
+  <div class="card">
+    {{ section("Subject") }}
+    <dl class="kv">
+      <dt>Identity</dt><dd>{{ finding.identity.display_name if finding.identity else '—' }}</dd>
+      <dt>Reference</dt><dd>{{ finding.identity.external_ref if finding.identity else '—' }}</dd>
+      <dt>Account</dt><dd>{{ finding.account.username if finding.account else '—' }}</dd>
+      <dt>System</dt><dd>{{ finding.system.code if finding.system else '—' }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    {{ section("Lifecycle") }}
+    <dl class="kv">
+      <dt>Detected</dt><dd>{{ reltime(finding.detected_at) }}</dd>
+      <dt>Due</dt><dd>{{ reltime(finding.due_at) }}</dd>
+      <dt>Remediated</dt><dd>{{ reltime(finding.remediated_at) }}</dd>
+      <dt>Remediation note</dt><dd>{{ finding.remediation_note or '—' }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    {{ section("Rule") }}
+    <dl class="kv">
+      <dt>Code</dt><dd>{{ finding.rule.code if finding.rule else '—' }}</dd>
+      <dt>Name</dt><dd>{{ finding.rule.name if finding.rule else '—' }}</dd>
+      <dt>Category</dt><dd>{{ finding.rule.category if finding.rule else '—' }}</dd>
+      <dt>Logic</dt><dd class="text-small">{{ finding.rule.logic_hint if finding.rule else '—' }}</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card mt-6">
+  {{ section("Evidence", finding.evidence|length ~ " item(s)") }}
+  {% if finding.evidence %}
+    <ul class="evidence-list">
+      {% for e in finding.evidence %}
+        <li class="evidence-item">
+          <span class="evidence-kind kind-{{ e.kind }}">{{ e.kind }}</span>
+          <div class="evidence-body">
+            <p class="evidence-title">{{ e.title }}</p>
+            {% if e.uri %}<p class="text-small"><a href="{{ e.uri }}" rel="noopener noreferrer">{{ e.uri }}</a></p>{% endif %}
+            {% if e.content %}<pre class="evidence-content">{{ e.content }}</pre>{% endif %}
+            <p class="text-small text-muted">
+              {{ e.collector.full_name if e.collector else 'system' }} · {{ reltime(e.collected_at) }}
+              {% if e.sha256 %}<br>sha256: <code>{{ e.sha256[:32] }}…</code>{% endif %}
+            </p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {{ empty_state("❐", "No evidence attached") }}
+  {% endif %}
+</div>
+
+<div class="card mt-6">
+  {{ section("Full Change History", "Every modification, from the immutable audit log") }}
+  {% if history %}
+    <ol class="timeline">
+      {% for h in history %}
+        <li class="timeline-item sev-{{ h.severity }}">
+          <span class="timeline-dot"></span>
+          <div class="timeline-body">
+            <p class="timeline-msg">{{ h.message or h.action }}</p>
+            <p class="text-small">
+              <strong>{{ h.actor_username }}</strong> · {{ reltime(h.event_time) }} ·
+              <span class="type-tag">{{ h.event_type }}</span>
+            </p>
+            {% if h.before_state or h.after_state %}
+              <details class="diff">
+                <summary>Show state diff</summary>
+                <div class="diff-grid">
+                  <div>
+                    <p class="diff-label">Before</p>
+                    <pre class="diff-pre">{{ h.before_state | tojson(indent=2) if h.before_state else '—' }}</pre>
+                  </div>
+                  <div>
+                    <p class="diff-label">After</p>
+                    <pre class="diff-pre">{{ h.after_state | tojson(indent=2) if h.after_state else '—' }}</pre>
+                  </div>
+                </div>
+              </details>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    {{ empty_state("◷", "No history recorded") }}
+  {% endif %}
+</div>
+
+{% endblock %}

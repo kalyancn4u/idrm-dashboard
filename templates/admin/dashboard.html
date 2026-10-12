@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import kpi, sev_badge, status_badge, risk_band, empty_state, progress, reltime, section, page_head %}
+
+{% block title %}Admin Overview{% endblock %}
+{% block breadcrumb %}<span class="crumb-current">Admin · Overview</span>{% endblock %}
+
+{% block content %}
+
+{{ page_head(
+    "Operations Overview",
+    "Live posture across identities, access and risk findings.",
+    badge='<span class="mode-badge">ADMIN MODE</span>'|safe
+) }}
+
+{# ---------------- KPI row ---------------- #}
+<div class="kpi-grid">
+  {{ kpi("Active Identities",   kpi.identities_active,
+         meta=kpi.identities_terminated ~ " terminated", tone="emerald", icon="◉",
+         href=url_for('admin.identities')) }}
+  {{ kpi("Active Grants",       kpi.grants_active,
+         meta=kpi.accounts_active ~ " accounts", tone="slate", icon="⇄",
+         href=url_for('admin.grants')) }}
+  {{ kpi("Open Findings",       kpi.findings_open,
+         meta=kpi.findings_critical ~ " critical", tone="critical", icon="⚑",
+         href=url_for('admin.findings')) }}
+  {{ kpi("Overdue Findings",    kpi.findings_overdue,
+         meta=kpi.remediated_30d ~ " remediated in 30d",
+         tone="warning" if kpi.findings_overdue else "emerald", icon="◷",
+         href=url_for('admin.findings', status='open')) }}
+</div>
+
+{# ---------------- Scan + campaign strip ---------------- #}
+<div class="grid grid-2 mt-6">
+
+  <div class="card">
+    {{ section("Last Risk Scan", "Engine output from the most recent execution") }}
+    {% if scan %}
+      <dl class="kv">
+        <dt>Scan</dt><dd>#{{ scan.id }} · {{ scan.trigger_source }}</dd>
+        <dt>Started</dt><dd>{{ reltime(scan.started_at) }}</dd>
+        <dt>Duration</dt><dd>{{ scan.duration_s or '—' }} s</dd>
+        <dt>Rules evaluated</dt><dd>{{ scan.rules_evaluated }}</dd>
+        <dt>Findings created</dt><dd class="text-strong">{{ scan.findings_created }}</dd>
+        <dt>Findings auto-closed</dt><dd>{{ scan.findings_closed }}</dd>
+        <dt>Status</dt><dd>{{ status_badge(scan.status) }}</dd>
+      </dl>
+      <form method="post" action="{{ url_for('admin.trigger_scan') }}" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-primary" type="submit">⚡ Run scan now</button>
+      </form>
+    {% else %}
+      {{ empty_state("🛰", "No scans yet", "Run the risk engine to establish a baseline.") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Active Certification", "Quarterly access review progress") }}
+    {% if campaign %}
+      <p class="text-strong">{{ campaign.name }}</p>
+      <p class="text-muted">{{ campaign.code }}{% if campaign.scope_code %} · {{ campaign.scope_code }}{% endif %}</p>
+
+      <div class="mt-4">
+        {{ progress(campaign.progress_pct) }}
+        <p class="text-small mt-1">
+          {{ campaign.decided }} of {{ campaign.total }} items decided · {{ campaign.progress_pct }}%
+        </p>
+      </div>
+
+      <div class="chip-row mt-4">
+        <span class="badge badge-success">✓ {{ campaign.approved }} approved</span>
+        <span class="badge badge-error">✗ {{ campaign.revoked }} revoked</span>
+        <span class="badge badge-warning">{{ campaign.total - campaign.decided }} pending</span>
+      </div>
+
+      <p class="text-small mt-4">Due {{ reltime(campaign.due_at) }}</p>
+      <a class="btn btn-outline mt-4" href="{{ url_for('admin.reviews') }}">Open certification →</a>
+    {% else %}
+      {{ empty_state("☑", "No active certification",
+                     "Create a campaign to certify access for a system.") }}
+    {% endif %}
+  </div>
+</div>
+
+{# ---------------- Severity + system breakdown ---------------- #}
+<div class="grid grid-2 mt-6">
+  <div class="card">
+    {{ section("Open Findings by Severity") }}
+    {% if severity %}
+      <ul class="bar-list">
+        {% set max_n = severity|map(attribute='n')|max %}
+        {% for s in severity %}
+          <li class="bar-row">
+            <span class="bar-label">{{ sev_badge(s.severity) }}</span>
+            <span class="bar-track"><i class="bar-fill sev-fill-{{ s.severity }}"
+                 style="width: {{ (100 * s.n / max_n)|round|int }}%"></i></span>
+            <span class="bar-value">{{ s.n }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("✓", "No open findings", "Everything is currently within tolerance.") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Open Findings by Category") }}
+    {% if categories %}
+      <ul class="bar-list">
+        {% set max_c = categories|map(attribute='n')|max %}
+        {% for c in categories %}
+          <li class="bar-row">
+            <span class="bar-label"><span class="cat-tag">{{ c.category }}</span></span>
+            <span class="bar-track"><i class="bar-fill" style="width: {{ (100 * c.n / max_c)|round|int }}%"></i></span>
+            <span class="bar-value">{{ c.n }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("✓", "No open findings") }}
+    {% endif %}
+  </div>
+</div>
+
+{# ---------------- Recent findings ---------------- #}
+<div class="card mt-6">
+  {{ section(
+      "Recent Findings",
+      "Newest detections across the estate",
+      actions='<a class="btn btn-ghost btn-sm" href="' ~ url_for('admin.findings') ~ '">View all →</a>'|safe
+  ) }}
+
+  {% if recent %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th><th>Severity</th><th>Title</th>
+            <th>Identity</th><th>System</th><th>Detected</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in recent %}
+            <tr>
+              <td><a href="{{ url_for('admin.finding_detail', finding_id=f.id) }}">{{ f.code }}</a></td>
+              <td>{{ sev_badge(f.severity) }}</td>
+              <td class="cell-title">{{ f.title }}</td>
+              <td>
+                {% if f.identity_id %}
+                  <a href="{{ url_for('admin.identity_detail', identity_id=f.identity_id) }}">{{ f.identity_name }}</a>
+                {% else %}—{% endif %}
+              </td>
+              <td><span class="sys-tag">{{ f.system_code }}</span></td>
+              <td class="text-muted">{{ reltime(f.detected_at) }}</td>
+              <td>{{ status_badge(f.status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("🎉", "No findings", "The estate is clean — run a scan to confirm.") }}
+  {% endif %}
+</div>
+
+{# ---------------- Risky identities + overdue ---------------- #}
+<div class="grid grid-2 mt-6">
+  <div class="card">
+    {{ section("Highest-Risk Identities", "Weighted by open findings") }}
+    {% if top_risky %}
+      <ul class="identity-list">
+        {% for i in top_risky %}
+          <li class="identity-row">
+            <span class="avatar sm">{{ i.display_name[:1] }}{{ i.display_name.split()[-1][:1] }}</span>
+            <div class="identity-meta">
+              <a href="{{ url_for('admin.identity_detail', identity_id=i.id) }}" class="identity-name">
+                {{ i.display_name }}
+              </a>
+              <span class="text-small">{{ i.department or '—' }}
+                {% if i.is_privileged %}<span class="badge badge-warning">privileged</span>{% endif %}
+              </span>
+            </div>
+            <div class="identity-right">
+              {{ risk_band(i.risk_score) }}
+              <span class="text-small">{{ i.open_findings }} open</span>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("◉", "No identities at elevated risk") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Overdue Findings", "Past their SLA due date") }}
+    {% if overdue %}
+      <ul class="findings-list">
+        {% for f in overdue %}
+          <li class="finding-row">
+            <div class="finding-main">
+              <a href="{{ url_for('admin.finding_detail', finding_id=f.id) }}">{{ f.title }}</a>
+              <span class="text-small">{{ f.identity_name or '—' }}</span>
+            </div>
+            <div class="finding-right">
+              {{ sev_badge(f.severity) }}
+              <span class="text-small text-error">due {{ reltime(f.due_at) }}</span>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("✓", "Nothing overdue", "All open findings are within SLA.") }}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

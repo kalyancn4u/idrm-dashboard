@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import empty_state, reltime, section, page_head %}
+
+{% block title %}Exports & Evidence{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('auditor.dashboard') }}">Auditor</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Exports &amp; Evidence</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Exports & Evidence Register", "Audit-ready data extracts",
+             badge='<span class="mode-badge mode-auditor">READ ONLY</span>'|safe) }}
+
+<div class="grid grid-4 mt-6">
+  <a class="card export-card" href="{{ url_for('auditor.export_csv', kind='findings') }}">
+    <span class="export-icon">⚑</span>
+    <span class="export-title">Findings</span>
+    <span class="export-sub">All findings with severity, status, SLA dates and assignee</span>
+    <span class="export-cta">⇩ Download CSV</span>
+  </a>
+  <a class="card export-card" href="{{ url_for('auditor.export_csv', kind='identities') }}">
+    <span class="export-icon">◉</span>
+    <span class="export-title">Identities</span>
+    <span class="export-sub">Risk scores, employment status, account and finding counts</span>
+    <span class="export-cta">⇩ Download CSV</span>
+  </a>
+  <a class="card export-card" href="{{ url_for('auditor.export_csv', kind='grants') }}">
+    <span class="export-icon">⇄</span>
+    <span class="export-title">Active Grants</span>
+    <span class="export-sub">Every active entitlement assignment with justification</span>
+    <span class="export-cta">⇩ Download CSV</span>
+  </a>
+  <a class="card export-card" href="{{ url_for('auditor.export_csv', kind='audit') }}">
+    <span class="export-icon">◷</span>
+    <span class="export-title">Audit Trail</span>
+    <span class="export-sub">Complete append-only event log (up to 100 000 rows)</span>
+    <span class="export-cta">⇩ Download CSV</span>
+  </a>
+</div>
+
+<div class="card audit-notice mt-6">
+  <div class="alert-icon">📌</div>
+  <div class="alert-content">
+    <div class="alert-title">Every export is logged</div>
+    <div class="alert-message">
+      Each download writes an <code>EXPORT</code> event to the audit trail, capturing your
+      username, IP address, target dataset and payload size.
+    </div>
+  </div>
+</div>
+
+<div class="card mt-6">
+  {{ section("Evidence Register", evidence|length ~ " item(s)") }}
+  {% if evidence %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>Kind</th><th>Title</th><th>Finding</th><th>Severity</th>
+              <th>Collected by</th><th>Collected at</th><th>Reference</th></tr>
+        </thead>
+        <tbody>
+          {% for e in evidence %}
+            <tr>
+              <td><span class="evidence-kind kind-{{ e.kind }}">{{ e.kind }}</span></td>
+              <td class="cell-title">{{ e.title }}</td>
+              <td><code class="rule-code">{{ e.finding_code }}</code></td>
+              <td>
+                {% set tone = {'critical':'error','high':'error','medium':'warning','low':'success'}.get(e.finding_severity,'info') %}
+                <span class="badge badge-{{ tone }}">{{ e.finding_severity }}</span>
+              </td>
+              <td class="text-muted">{{ e.collector_name or 'system' }}</td>
+              <td class="text-muted">{{ reltime(e.collected_at) }}</td>
+              <td>
+                {% if e.uri %}<a href="{{ e.uri }}" rel="noopener noreferrer" class="text-small">link</a>
+                {% else %}<span class="text-muted text-small">inline</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("❐", "No evidence collected yet") }}
+  {% endif %}
+</div>
+
+{% endblock %}

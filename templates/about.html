@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">About {{ app_name }}</h1>
+    <p class="page-sub">{{ app_tagline }}</p>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>What it does</h3>
+    <p>IDRM inventories identity access, evaluates it against a catalogue of risk
+       rules, and records every change in an immutable audit trail.</p>
+    <ul class="kv">
+      <dt>Identities</dt><dd>People, contractors, vendors, service accounts and robots</dd>
+      <dt>Accounts</dt><dd>Their logins on governed systems</dd>
+      <dt>Grants</dt><dd>Entitlements assigned to those accounts</dd>
+      <dt>Findings</dt><dd>Risk-rule violations with SLA, owner and evidence</dd>
+      <dt>Audit</dt><dd>Append-only, tamper-evident record of every change</dd>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Two modes</h3>
+    <p><strong>Admin</strong> — remediate, revoke, certify, scan.</p>
+    <p><strong>Auditor</strong> — read, filter, export. No writes, structurally.</p>
+    <hr>
+    <h3>Stack</h3>
+    <ul class="kv">
+      <dt>Framework</dt><dd>Flask 3</dd>
+      <dt>Database</dt><dd>PostgreSQL 14+</dd>
+      <dt>ORM</dt><dd>SQLAlchemy 2</dd>
+      <dt>Auth</dt><dd>Flask-Login + PBKDF2-SHA256</dd>
+      <dt>Design</dt><dd>Slate + Emerald, WCAG AAA</dd>
+    </ul>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <h3>Health</h3>
+  <p>The liveness probe is at <a href="{{ url_for('main.healthz') }}">/healthz</a>.</p>
+</div>
+{% endblock %}

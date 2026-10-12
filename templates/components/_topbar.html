@@ -1,0 +1,31 @@
+<header class="app-topbar">
+  <button class="icon-btn sidebar-toggle" type="button"
+          aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false"
+          data-sidebar-toggle>
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="topbar-title">
+    {% block breadcrumb %}{% endblock %}
+  </div>
+
+  <div class="topbar-actions">
+    {% if current_user.can_write %}
+      <form method="post" action="{{ url_for('admin.trigger_scan') }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm" type="submit" title="Run the risk engine now">
+          ⚡ Run Risk Scan
+        </button>
+      </form>
+    {% endif %}
+
+    <div class="user-chip">
+      <span class="avatar" aria-hidden="true">{{ current_user.initials }}</span>
+      <div class="user-meta">
+        <span class="user-name">{{ current_user.full_name }}</span>
+        <span class="user-role">{{ current_user.role }}</span>
+      </div>
+      <a class="btn btn-ghost btn-sm" href="{{ url_for('auth.logout') }}">Sign out</a>
+    </div>
+  </div>
+</header>

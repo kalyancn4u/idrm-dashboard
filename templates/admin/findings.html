@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, empty_state, pager, reltime, page_head %}
+
+{% block title %}Findings{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Findings</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Risk Findings", total ~ " matching findings", badge='<span class="mode-badge">ADMIN</span>'|safe) }}
+
+<form class="filter-bar card" method="get">
+  <div class="filter-grid">
+    <div class="form-group">
+      <label class="form-label" for="q">Search</label>
+      <input id="q" name="q" type="text" value="{{ q }}" placeholder="Title, code, identity…">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="status">Status</label>
+      <select id="status" name="status">
+        {% for s in ['open','all','in_review','remediated','accepted_risk','false_positive','closed'] %}
+          <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s.replace('_',' ') }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="severity">Severity</label>
+      <select id="severity" name="severity">
+        <option value="">All</option>
+        {% for s in ['critical','high','medium','low'] %}
+          <option value="{{ s }}" {{ 'selected' if severity == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="system">System</label>
+      <select id="system" name="system">
+        <option value="">All</option>
+        {% for s in systems %}<option value="{{ s }}" {{ 'selected' if system == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="assigned">Assignment</label>
+      <select id="assigned" name="assigned">
+        <option value="">Any</option>
+        <option value="me" {{ 'selected' if assigned == 'me' }}>Assigned to me</option>
+        <option value="unassigned" {{ 'selected' if assigned == 'unassigned' }}>Unassigned</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn btn-ghost" href="{{ url_for('admin.findings') }}">Reset</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mt-6">
+  {% if rows %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th><th>Severity</th><th>Title</th><th>Identity</th>
+            <th>System</th><th>Rule</th><th>Due</th><th>Status</th><th>Assignee</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr class="{{ 'row-overdue' if r.overdue }}">
+              <td><a href="{{ url_for('admin.finding_detail', finding_id=r.id) }}">{{ r.code }}</a></td>
+              <td>{{ sev_badge(r.severity) }}</td>
+              <td class="cell-title">{{ r.title }}</td>
+              <td>
+                {% if r.identity_id %}
+                  <a href="{{ url_for('admin.identity_detail', identity_id=r.identity_id) }}">{{ r.identity_name }}</a>
+                {% else %}—{% endif %}
+              </td>
+              <td><span class="sys-tag">{{ r.system_code }}</span></td>
+              <td><code class="rule-code">{{ r.rule_code }}</code></td>
+              <td class="text-muted">
+                {{ reltime(r.due_at) }}
+                {% if r.overdue %}<span class="badge badge-error">overdue</span>{% endif %}
+              </td>
+              <td>{{ status_badge(r.status) }}</td>
+              <td class="text-muted">{{ r.assignee }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pager(page, pages, 'admin.findings', q=q, status=status, severity=severity, system=system, assigned=assigned) }}
+  {% else %}
+    {{ empty_state("🎉", "No findings match", "Adjust filters or run a new scan.") }}
+  {% endif %}
+</div>
+
+{% endblock %}

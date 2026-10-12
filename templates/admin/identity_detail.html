@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, risk_band, empty_state, reltime, section, page_head %}
+
+{% block title %}{{ identity.display_name }}{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb"><a href="{{ url_for('admin.identities') }}">Identities</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">{{ identity.display_name }}</span>
+{% endblock %}
+
+{% block content %}
+
+<div class="profile-head card">
+  <span class="avatar lg">{{ identity.initials }}</span>
+  <div class="profile-main">
+    <h1 class="profile-name">
+      {{ identity.display_name }}
+      {% if identity.is_privileged %}<span class="badge badge-warning">privileged</span>{% endif %}
+      {% if identity.is_terminated %}<span class="badge badge-error">terminated</span>{% endif %}
+    </h1>
+    <p class="profile-sub">
+      {{ identity.job_title or '—' }} · {{ identity.department or '—' }}
+      {% if identity.email %} · <a href="mailto:{{ identity.email }}">{{ identity.email }}</a>{% endif %}
+    </p>
+    <div class="chip-row mt-2">
+      <span class="type-tag">{{ identity.identity_type.replace('_',' ') }}</span>
+      {{ status_badge(identity.employment_status) }}
+      {% if identity.external_ref %}<span class="badge badge-info">{{ identity.external_ref }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="profile-side">
+    <div class="profile-score">
+      <span class="score-label">Risk score</span>
+      {{ risk_band(identity.risk_score) }}
+    </div>
+    {% if current_user.role == 'admin' %}
+      <form method="post" action="{{ url_for('admin.toggle_privileged', identity_id=identity.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline btn-sm" type="submit">
+          {{ 'Unmark' if identity.is_privileged else 'Mark' }} privileged
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-3 mt-6">
+  <div class="card stat-card"><span class="stat-label">Accounts</span><span class="stat-value">{{ accounts|length }}</span></div>
+  <div class="card stat-card"><span class="stat-label">Active grants</span><span class="stat-value">{{ grants|selectattr('state','equalto','active')|list|length }}</span></div>
+  <div class="card stat-card"><span class="stat-label">Open findings</span><span class="stat-value">{{ findings|selectattr('status','in',['open','in_review'])|list|length }}</span></div>
+</div>
+
+<div class="card mt-6">
+  {{ section("Accounts", "Logins owned by this identity") }}
+  {% if accounts %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>System</th><th>Username</th><th>Type</th><th>Status</th>
+              <th>MFA</th><th>Last login</th><th class="num">Grants</th></tr>
+        </thead>
+        <tbody>
+          {% for a in accounts %}
+            <tr>
+              <td><span class="sys-tag">{{ a.system_code }}</span></td>
+              <td><code>{{ a.username }}</code></td>
+              <td>{{ a.account_type }}</td>
+              <td>{{ status_badge(a.status) }}</td>
+              <td>
+                {% if a.mfa_enabled %}<span class="badge badge-success">on</span>
+                {% else %}<span class="badge badge-error">off</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ reltime(a.last_login_at) }}</td>
+              <td class="num">{{ a.grant_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("◌", "No accounts") }}
+  {% endif %}
+</div>
+
+<div class="card mt-6">
+  {{ section("Access Grants", "Effective entitlements across all systems") }}
+  {% if grants %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>System</th><th>Entitlement</th><th>Account</th><th>State</th>
+              <th>Granted</th><th>Expires</th><th>Last used</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for g in grants %}
+            <tr class="{{ 'row-priv' if g.is_privileged }}">
+              <td><span class="sys-tag">{{ g.system_code }}</span></td>
+              <td>
+                <strong>{{ g.entitlement_code }}</strong>
+                {% if g.is_privileged %}<span class="badge badge-warning">priv</span>{% endif %}
+                <br><span class="text-small">{{ g.entitlement_name }}</span>
+              </td>
+              <td><code>{{ g.username }}</code></td>
+              <td>{{ status_badge(g.state) }}</td>
+              <td class="text-muted">{{ reltime(g.granted_at) }}</td>
+              <td class="text-muted">
+                {% if g.expires_at %}{{ reltime(g.expires_at) }}
+                {% else %}<span class="badge badge-warning">no expiry</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ reltime(g.last_used_at) }}</td>
+              <td>
+                {% if current_user.can_write and g.state == 'active' %}
+                  <form method="post" action="{{ url_for('admin.revoke_grant', grant_id=g.id) }}"
+                        data-confirm="Revoke {{ g.entitlement_code }} from {{ identity.display_name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("⇄", "No grants") }}
+  {% endif %}
+</div>
+
+<div class="grid grid-2 mt-6">
+  <div class="card">
+    {{ section("Findings") }}
+    {% if findings %}
+      <ul class="findings-list">
+        {% for f in findings %}
+          <li class="finding-row">
+            <div class="finding-main">
+              <a href="{{ url_for('admin.finding_detail', finding_id=f.id) }}">{{ f.title }}</a>
+              <span class="text-small">{{ f.rule_code }} · {{ f.system_code }}</span>
+            </div>
+            <div class="finding-right">
+              {{ sev_badge(f.severity) }}
+              {{ status_badge(f.status) }}
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("✓", "No findings") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Activity Timeline", "Immutable audit trail for this identity") }}
+    {% if timeline %}
+      <ol class="timeline">
+        {% for t in timeline %}
+          <li class="timeline-item sev-{{ t.severity }}">
+            <span class="timeline-dot"></span>
+            <div class="timeline-body">
+              <p class="timeline-msg">{{ t.message or t.action }}</p>
+              <p class="text-small">
+                {{ t.actor_username }} · {{ reltime(t.event_time) }} ·
+                <span class="type-tag">{{ t.entity_type }}#{{ t.entity_id }}</span>
+              </p>
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      {{ empty_state("◷", "No activity recorded") }}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

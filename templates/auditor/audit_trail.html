@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import empty_state, pager, reltime, page_head %}
+
+{% block title %}Audit Trail{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('auditor.dashboard') }}">Auditor</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Audit Trail</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Immutable Audit Trail", total ~ " events recorded",
+             badge='<span class="mode-badge mode-auditor">APPEND-ONLY</span>'|safe) }}
+
+<div class="card audit-notice">
+  <div class="alert-icon">🔐</div>
+  <div class="alert-content">
+    <div class="alert-title">Tamper-evident</div>
+    <div class="alert-message">
+      PostgreSQL rules neutralise <code>UPDATE</code> and <code>DELETE</code> against this table.
+      Rows can only be appended.
+    </div>
+  </div>
+</div>
+
+<form class="filter-bar card mt-6" method="get">
+  <div class="filter-grid">
+    <div class="form-group">
+      <label class="form-label" for="actor">Actor</label>
+      <input id="actor" name="actor" type="text" value="{{ actor }}" placeholder="username…">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="entity_type">Entity</label>
+      <select id="entity_type" name="entity_type">
+        <option value="">All</option>
+        {% for e in entity_types %}
+          <option value="{{ e }}" {{ 'selected' if entity_type == e }}>{{ e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="event_type">Event</label>
+      <select id="event_type" name="event_type">
+        <option value="">All</option>
+        {% for e in event_types %}
+          <option value="{{ e }}" {{ 'selected' if event_type == e }}>{{ e }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="severity">Severity</label>
+      <select id="severity" name="severity">
+        <option value="">All</option>
+        {% for s in ['info','notice','warning','critical'] %}
+          <option value="{{ s }}" {{ 'selected' if severity == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="since">Window</label>
+      <select id="since" name="since">
+        <option value="">All time</option>
+        <option value="1"  {{ 'selected' if since == '1' }}>Last 24 hours</option>
+        <option value="7"  {{ 'selected' if since == '7' }}>Last 7 days</option>
+        <option value="30" {{ 'selected' if since == '30' }}>Last 30 days</option>
+        <option value="90" {{ 'selected' if since == '90' }}>Last 90 days</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Filter</button>
+      <a class="btn btn-ghost" href="{{ url_for('auditor.audit_trail') }}">Reset</a>
+      <a class="btn btn-outline" href="{{ url_for('auditor.export_csv', kind='audit') }}">⇩ CSV</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mt-6">
+  {% if rows %}
+    <div class="table-wrapper">
+      <table class="data-table audit-table">
+        <thead>
+          <tr>
+            <th>Time</th><th>Actor</th><th>Event</th><th>Entity</th>
+            <th>Action</th><th>Severity</th><th>Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr class="sev-row-{{ r.severity }}">
+              <td class="nowrap">{{ reltime(r.event_time) }}</td>
+              <td><strong>{{ r.actor_username }}</strong>
+                {% if r.actor_ip %}<br><span class="text-small text-muted">{{ r.actor_ip }}</span>{% endif %}
+              </td>
+              <td><span class="type-tag">{{ r.event_type }}</span></td>
+              <td>
+                {% if r.entity_type %}<span class="type-tag">{{ r.entity_type }}</span>
+                  <span class="text-small">#{{ r.entity_id }}</span>
+                {% else %}—{% endif %}
+              </td>
+              <td class="text-muted">{{ r.action }}</td>
+              <td>
+                {% set tone = {'info':'info','notice':'review','warning':'warning','critical':'error'}.get(r.severity,'info') %}
+                <span class="badge badge-{{ tone }}">{{ r.severity }}</span>
+              </td>
+              <td class="cell-title">{{ r.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager(page, pages, 'auditor.audit_trail',
+              actor=actor, entity_type=entity_type, event_type=event_type,
+              severity=severity, since=since) }}
+  {% else %}
+    {{ empty_state("◷", "No audit events match", "Broaden your filters.") }}
+  {% endif %}
+</div>
+
+{% endblock %}

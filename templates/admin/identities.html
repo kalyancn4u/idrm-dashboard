@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, risk_band, empty_state, pager, page_head %}
+
+{% block title %}Identities{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Identities</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Identities", total ~ " governed identities", badge='<span class="mode-badge">ADMIN</span>'|safe) }}
+
+<form class="filter-bar card" method="get" action="{{ url_for('admin.identities') }}">
+  <div class="filter-grid">
+    <div class="form-group">
+      <label class="form-label" for="q">Search</label>
+      <input id="q" name="q" type="text" value="{{ q }}" placeholder="Name, email, department…">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="status">Employment</label>
+      <select id="status" name="status">
+        <option value="">All</option>
+        {% for s in ['active','leave','terminated'] %}
+          <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="type">Type</label>
+      <select id="type" name="type">
+        <option value="">All</option>
+        {% for t in ['employee','contractor','vendor','service_account','robot'] %}
+          <option value="{{ t }}" {{ 'selected' if itype == t }}>{{ t.replace('_',' ') }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="sort">Sort by</label>
+      <select id="sort" name="sort">
+        <option value="risk"     {{ 'selected' if sort == 'risk' }}>Risk score</option>
+        <option value="findings" {{ 'selected' if sort == 'findings' }}>Open findings</option>
+        <option value="name"     {{ 'selected' if sort == 'name' }}>Name</option>
+        <option value="recent"   {{ 'selected' if sort == 'recent' }}>Recently added</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn btn-ghost" href="{{ url_for('admin.identities') }}">Reset</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mt-6">
+  {% if rows %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Identity</th><th>Type</th><th>Department</th>
+            <th>Status</th><th class="num">Accounts</th>
+            <th class="num">Open</th><th>Risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>
+                <a class="identity-link" href="{{ url_for('admin.identity_detail', identity_id=r.id) }}">
+                  <span class="avatar sm">{{ r.display_name[:1] }}</span>
+                  <span>
+                    <strong>{{ r.display_name }}</strong>
+                    {% if r.is_privileged %}<span class="badge badge-warning">priv</span>{% endif %}
+                    <br><span class="text-small">{{ r.email or r.external_ref or '—' }}</span>
+                  </span>
+                </a>
+              </td>
+              <td><span class="type-tag">{{ r.identity_type.replace('_',' ') }}</span></td>
+              <td>{{ r.department or '—' }}</td>
+              <td>{{ status_badge(r.employment_status) }}</td>
+              <td class="num">{{ r.account_count }}</td>
+              <td class="num">
+                {% if r.open_findings %}
+                  <span class="count-pill count-warn">{{ r.open_findings }}</span>
+                {% else %}<span class="text-muted">0</span>{% endif %}
+              </td>
+              <td>{{ risk_band(r.risk_score) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pager(page, pages, 'admin.identities', q=q, status=status, type=itype, sort=sort) }}
+  {% else %}
+    {{ empty_state("🔎", "No identities match", "Try widening your filters.") }}
+  {% endif %}
+</div>
+
+{% endblock %}

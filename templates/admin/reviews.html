@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import status_badge, empty_state, progress, reltime, section, page_head %}
+
+{% block title %}Certifications{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Certifications</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Access Certifications", "Periodic re-attestation of granted access", badge='<span class="mode-badge">ADMIN</span>'|safe) }}
+
+<div class="grid grid-2">
+  {% for c in campaigns %}
+    <div class="card campaign-card">
+      <div class="campaign-head">
+        <div>
+          <h3 class="campaign-name">{{ c.name }}</h3>
+          <p class="text-small">{{ c.code }}{% if c.scope_code %} · {{ c.scope_code }}{% endif %}</p>
+        </div>
+        {{ status_badge(c.status) }}
+      </div>
+      {{ progress(c.progress_pct) }}
+      <div class="chip-row mt-2">
+        <span class="badge badge-success">✓ {{ c.approved or 0 }} approved</span>
+        <span class="badge badge-error">✗ {{ c.revoked or 0 }} revoked</span>
+        <span class="badge badge-warning">{{ c.total - c.decided }} pending</span>
+      </div>
+      <p class="text-small mt-2">
+        {{ c.decided }} / {{ c.total }} decided · due {{ reltime(c.due_at) }}
+      </p>
+    </div>
+  {% else %}
+    {{ empty_state("☑", "No campaigns", "Create one to begin certifying access.") }}
+  {% endfor %}
+</div>
+
+<div class="card mt-6">
+  {{ section("Active Certification Items", items|length ~ " item(s) awaiting or completing review") }}
+
+  {% if items %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Identity</th><th>System</th><th>Account</th><th>Entitlement</th>
+            <th>Reviewer</th><th>Decision</th><th>Decided</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in items %}
+            <tr class="{{ 'row-priv' if i.is_privileged }}">
+              <td>
+                <a href="{{ url_for('admin.identity_detail', identity_id=i.identity_id) }}">{{ i.identity_name }}</a>
+              </td>
+              <td><span class="sys-tag">{{ i.system_code }}</span></td>
+              <td><code>{{ i.username }}</code></td>
+              <td>
+                <strong>{{ i.entitlement_code }}</strong>
+                {% if i.is_privileged %}<span class="badge badge-warning">priv</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ i.reviewer_name or '—' }}</td>
+              <td>{{ status_badge(i.decision) }}</td>
+              <td class="text-muted">{{ reltime(i.decided_at) }}</td>
+              <td class="cell-actions">
+                {% if current_user.can_write %}
+                  <form method="post" action="{{ url_for('admin.decide_review_item', item_id=i.id) }}"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="decision" value="approve">
+                    <button class="btn btn-outline btn-sm" type="submit">Approve</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.decide_review_item', item_id=i.id) }}"
+                        class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="decision" value="revoke">
+                    <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("☑", "No active certification items") }}
+  {% endif %}
+</div>
+
+{% endblock %}

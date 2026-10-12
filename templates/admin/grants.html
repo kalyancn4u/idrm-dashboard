@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import status_badge, empty_state, pager, reltime, page_head %}
+
+{% block title %}Access Grants{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Access Grants</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Access Grants", total ~ " matching grants", badge='<span class="mode-badge">ADMIN</span>'|safe) }}
+
+<form class="filter-bar card" method="get">
+  <div class="filter-grid">
+    <div class="form-group">
+      <label class="form-label" for="q">Search</label>
+      <input id="q" name="q" type="text" value="{{ q }}" placeholder="Identity, entitlement, username…">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="state">State</label>
+      <select id="state" name="state">
+        {% for s in ['active','revoked','expired','pending'] %}
+          <option value="{{ s }}" {{ 'selected' if state == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="system">System</label>
+      <select id="system" name="system">
+        <option value="">All</option>
+        {% for s in systems %}<option value="{{ s.code }}" {{ 'selected' if system == s.code }}>{{ s.code }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group checkbox-group" style="align-self:end">
+      <input id="privileged" name="privileged" type="checkbox" value="1" {{ 'checked' if privileged }}>
+      <label for="privileged">Privileged only</label>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn btn-ghost" href="{{ url_for('admin.grants') }}">Reset</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mt-6">
+  {% if rows %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Identity</th><th>System</th><th>Account</th><th>Entitlement</th>
+            <th>State</th><th>Granted</th><th>Expires</th><th>Last used</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr class="{{ 'row-priv' if r.is_privileged }}">
+              <td>
+                <a href="{{ url_for('admin.identity_detail', identity_id=r.identity_id) }}">{{ r.identity_name }}</a>
+              </td>
+              <td><span class="sys-tag">{{ r.system_code }}</span></td>
+              <td><code>{{ r.username }}</code><br><span class="text-small">{{ r.account_type }}</span></td>
+              <td>
+                <strong>{{ r.entitlement_code }}</strong>
+                {% if r.is_privileged %}<span class="badge badge-warning">priv</span>{% endif %}
+                <br><span class="text-small">{{ r.entitlement_name }}</span>
+              </td>
+              <td>{{ status_badge(r.state) }}</td>
+              <td class="text-muted">{{ reltime(r.granted_at) }}</td>
+              <td class="text-muted">
+                {% if r.expires_at %}{{ reltime(r.expires_at) }}
+                {% else %}<span class="badge badge-warning">standing</span>{% endif %}
+              </td>
+              <td class="text-muted">{{ reltime(r.last_used_at) }}</td>
+              <td class="cell-actions">
+                {% if current_user.can_write and r.state == 'active' %}
+                  <form method="post" action="{{ url_for('admin.revoke_grant', grant_id=r.id) }}"
+                        data-confirm="Revoke {{ r.entitlement_code }} from {{ r.identity_name }}?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-danger btn-sm" type="submit">Revoke</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.extend_grant', grant_id=r.id) }}" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="days" value="30">
+                    <button class="btn btn-ghost btn-sm" type="submit">+30d</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pager(page, pages, 'admin.grants', q=q, state=state, system=system, privileged='1' if privileged else '') }}
+  {% else %}
+    {{ empty_state("⇄", "No grants match", "Try a different state or system.") }}
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import status_badge, empty_state, progress, reltime, page_head %}
+
+{% block title %}Certifications · Auditor{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('auditor.dashboard') }}">Auditor</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Certifications</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Certification Campaigns", "Evidence of periodic access re-attestation",
+             badge='<span class="mode-badge mode-auditor">READ ONLY</span>'|safe) }}
+
+<div class="grid grid-2 mt-6">
+  {% for c in campaigns %}
+    <div class="card campaign-card">
+      <div class="campaign-head">
+        <div>
+          <h3 class="campaign-name">{{ c.name }}</h3>
+          <p class="text-small">{{ c.code }}{% if c.scope_code %} · scope: {{ c.scope_code }}{% else %} · global scope{% endif %}</p>
+        </div>
+        {{ status_badge(c.status) }}
+      </div>
+
+      {{ progress(c.progress_pct) }}
+
+      <div class="chip-row mt-2">
+        <span class="badge badge-success">✓ {{ c.approved or 0 }} approved</span>
+        <span class="badge badge-error">✗ {{ c.revoked or 0 }} revoked</span>
+        <span class="badge badge-warning">{{ c.total - c.decided }} pending</span>
+      </div>
+
+      <dl class="kv mt-4">
+        <dt>Started</dt><dd>{{ reltime(c.starts_at) }}</dd>
+        <dt>Due</dt><dd>{{ reltime(c.due_at) }}</dd>
+        <dt>Items</dt><dd>{{ c.decided }} / {{ c.total }} decided ({{ c.progress_pct }}%)</dd>
+      </dl>
+    </div>
+  {% else %}
+    {{ empty_state("☑", "No campaigns recorded") }}
+  {% endfor %}
+</div>
+
+{% endblock %}

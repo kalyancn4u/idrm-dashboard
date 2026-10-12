@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<div class="state-container error-state">
+  <div class="state-icon">⚠️</div>
+  <div class="state-title">500 — Something went wrong</div>
+  <div class="state-description">
+    The error has been logged. If it persists, check <code>logs/idrm.log</code>.
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">Return to dashboard</a>
+</div>
+{% endblock %}
+{% block anon_content %}
+<div class="state-container error-state">
+  <div class="state-icon">⚠️</div>
+  <div class="state-title">500 — Something went wrong</div>
+  <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Sign in</a>
+</div>
+{% endblock %}

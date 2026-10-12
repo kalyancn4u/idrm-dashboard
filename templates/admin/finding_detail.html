@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, risk_band, empty_state, reltime, section %}
+
+{% block title %}{{ finding.code }}{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('admin.dashboard') }}">Admin</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb"><a href="{{ url_for('admin.findings') }}">Findings</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">{{ finding.code }}</span>
+{% endblock %}
+
+{% block content %}
+
+<div class="finding-head card sev-border-{{ finding.severity }}">
+  <div class="finding-head-main">
+    <div class="chip-row">
+      {{ sev_badge(finding.severity) }}
+      {{ status_badge(finding.status) }}
+      {% if finding.is_overdue %}<span class="badge badge-error">OVERDUE</span>{% endif %}
+      <span class="badge badge-info">{{ finding.code }}</span>
+      {% if finding.rule %}<span class="badge badge-review">{{ finding.rule.code }}</span>{% endif %}
+    </div>
+    <h1 class="finding-title">{{ finding.title }}</h1>
+    {% if finding.description %}
+      <p class="finding-desc">{{ finding.description }}</p>
+    {% endif %}
+  </div>
+  <div class="finding-head-side">
+    <span class="score-label">Risk points</span>
+    <span class="score-big">{{ '%.0f'|format(finding.risk_score or 0) }}</span>
+  </div>
+</div>
+
+<div class="grid grid-3 mt-6">
+  <div class="card">
+    {{ section("Subject") }}
+    <dl class="kv">
+      <dt>Identity</dt>
+      <dd>
+        {% if finding.identity %}
+          <a href="{{ url_for('admin.identity_detail', identity_id=finding.identity.id) }}">
+            {{ finding.identity.display_name }}</a>
+        {% else %}—{% endif %}
+      </dd>
+      <dt>Account</dt><dd>{{ finding.account.username if finding.account else '—' }}</dd>
+      <dt>System</dt><dd>{{ finding.system.code if finding.system else '—' }}</dd>
+      <dt>Entitlement</dt>
+      <dd>{{ finding.grant.entitlement.code if finding.grant else '—' }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    {{ section("Lifecycle") }}
+    <dl class="kv">
+      <dt>Detected</dt><dd>{{ reltime(finding.detected_at) }}</dd>
+      <dt>Due</dt>
+      <dd>{{ reltime(finding.due_at) }}
+        {% if finding.sla_days_remaining is not none and finding.is_open %}
+          <span class="text-small">
+            ({{ finding.sla_days_remaining }} day{{ 's' if finding.sla_days_remaining != 1 }} left)
+          </span>
+        {% endif %}
+      </dd>
+      <dt>Remediated</dt><dd>{{ reltime(finding.remediated_at) }}</dd>
+      <dt>Remediator</dt><dd>{{ finding.remediator.full_name if finding.remediator else '—' }}</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    {{ section("Ownership") }}
+    <dl class="kv">
+      <dt>Assignee</dt><dd>{{ finding.assignee.full_name if finding.assignee else 'Unassigned' }}</dd>
+      <dt>Rule</dt><dd>{{ finding.rule.name if finding.rule else '—' }}</dd>
+      <dt>Category</dt><dd>{{ finding.rule.category if finding.rule else '—' }}</dd>
+    </dl>
+
+    {% if current_user.can_write %}
+      <form method="post" action="{{ url_for('admin.assign_finding', finding_id=finding.id) }}" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label" for="assignee_id">Reassign to</label>
+          <select id="assignee_id" name="assignee_id">
+            <option value="">— Unassigned —</option>
+            {% for a in assignees %}
+              <option value="{{ a.id }}" {{ 'selected' if finding.assigned_to == a.id }}>
+                {{ a.full_name }} ({{ a.role }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-outline btn-sm" type="submit">Update assignee</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if current_user.can_write %}
+<div class="card mt-6">
+  {{ section("Resolve", "Record a decision or remediation") }}
+  <form method="post" action="{{ url_for('admin.update_finding_status', finding_id=finding.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-2">
+      <div class="form-group">
+        <label class="form-label required" for="status">New status</label>
+        <select id="status" name="status" required>
+          {% for s in ['open','in_review','remediated','accepted_risk','false_positive','closed'] %}
+            <option value="{{ s }}" {{ 'selected' if finding.status == s }}>{{ s.replace('_',' ') }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="note">Note</label>
+        <textarea id="note" name="note" rows="2"
+                  placeholder="Justification, remediation evidence, ticket reference…"></textarea>
+        <div class="form-hint">The note is stored as immutable evidence.</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit">Record decision</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="card mt-6">
+  {{ section("Evidence", finding.evidence|length ~ " item(s)") }}
+
+  {% if finding.evidence %}
+    <ul class="evidence-list">
+      {% for e in finding.evidence %}
+        <li class="evidence-item">
+          <span class="evidence-kind kind-{{ e.kind }}">{{ e.kind }}</span>
+          <div class="evidence-body">
+            <p class="evidence-title">{{ e.title }}</p>
+            {% if e.uri %}<p class="text-small"><a href="{{ e.uri }}" rel="noopener noreferrer">{{ e.uri }}</a></p>{% endif %}
+            {% if e.content %}<pre class="evidence-content">{{ e.content }}</pre>{% endif %}
+            <p class="text-small text-muted">
+              {{ e.collector.full_name if e.collector else 'system' }} · {{ reltime(e.collected_at) }}
+            </p>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    {{ empty_state("❐", "No evidence attached") }}
+  {% endif %}
+
+  {% if current_user.can_write %}
+    <details class="attach-drawer mt-4">
+      <summary class="btn btn-outline btn-sm">+ Attach evidence</summary>
+      <form method="post" action="{{ url_for('admin.add_evidence', finding_id=finding.id) }}" class="mt-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid grid-3">
+          <div class="form-group">
+            <label class="form-label required" for="ev-title">Title</label>
+            <input id="ev-title" name="title" type="text" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ev-kind">Kind</label>
+            <select id="ev-kind" name="kind">
+              {% for k in ['note','link','query','screenshot','file'] %}
+                <option value="{{ k }}">{{ k }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ev-uri">URI (optional)</label>
+            <input id="ev-uri" name="uri" type="text" placeholder="https://…">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ev-content">Content</label>
+          <textarea id="ev-content" name="content" rows="3"></textarea>
+        </div>
+        <button class="btn btn-primary btn-sm" type="submit">Attach</button>
+      </form>
+    </details>
+  {% endif %}
+</div>
+
+{% if related %}
+<div class="card mt-6">
+  {{ section("Related Findings", "Same identity or account") }}
+  <ul class="findings-list">
+    {% for r in related %}
+      <li class="finding-row">
+        <div class="finding-main">
+          <a href="{{ url_for('admin.finding_detail', finding_id=r.id) }}">{{ r.title }}</a>
+          <span class="text-small">{{ r.code }}</span>
+        </div>
+        <div class="finding-right">{{ sev_badge(r.severity) }} {{ status_badge(r.status) }}</div>
+      </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

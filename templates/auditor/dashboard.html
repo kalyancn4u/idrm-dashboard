@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import kpi, sev_badge, status_badge, empty_state, progress, reltime, section, page_head %}
+
+{% block title %}Auditor Overview{% endblock %}
+{% block breadcrumb %}<span class="crumb-current">Auditor · Overview</span>{% endblock %}
+
+{% block content %}
+
+{{ page_head(
+    "Assurance Overview",
+    "Independent, read-only view of the identity risk posture.",
+    badge='<span class="mode-badge mode-auditor">AUDITOR MODE · READ ONLY</span>'|safe
+) }}
+
+<div class="kpi-grid">
+  {{ kpi("Open Findings",    kpi.findings_open,
+         meta=kpi.findings_critical ~ " critical", tone="critical", icon="⚑",
+         href=url_for('auditor.findings')) }}
+  {{ kpi("Overdue Findings", kpi.findings_overdue,
+         meta="past SLA", tone="warning" if kpi.findings_overdue else "emerald", icon="◷",
+         href=url_for('auditor.findings', status='open')) }}
+  {{ kpi("Active Identities", kpi.identities_active,
+         meta=kpi.identities_terminated ~ " terminated", tone="emerald", icon="◉") }}
+  {{ kpi("Active Grants",    kpi.grants_active,
+         meta=kpi.accounts_active ~ " accounts", tone="slate", icon="⇄") }}
+</div>
+
+<div class="card mt-6 audit-notice">
+  <div class="alert-icon">🔒</div>
+  <div class="alert-content">
+    <div class="alert-title">Read-only assurance mode</div>
+    <div class="alert-message">
+      Every object you open is recorded in the immutable audit trail.
+      Exports are logged with your username, IP and the row count.
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2 mt-6">
+  <div class="card">
+    {{ section("Open Findings by Severity") }}
+    {% if severity %}
+      <ul class="bar-list">
+        {% set max_n = severity|map(attribute='n')|max %}
+        {% for s in severity %}
+          <li class="bar-row">
+            <span class="bar-label">{{ sev_badge(s.severity) }}</span>
+            <span class="bar-track"><i class="bar-fill sev-fill-{{ s.severity }}"
+                 style="width: {{ (100 * s.n / max_n)|round|int }}%"></i></span>
+            <span class="bar-value">{{ s.n }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("✓", "No open findings") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Findings by System") }}
+    {% if by_system %}
+      <ul class="bar-list">
+        {% set max_s = by_system|map(attribute='n')|max %}
+        {% for s in by_system %}
+          <li class="bar-row">
+            <span class="bar-label"><span class="sys-tag">{{ s.system_code }}</span></span>
+            <span class="bar-track"><i class="bar-fill" style="width: {{ (100 * s.n / max_s)|round|int }}%"></i></span>
+            <span class="bar-value">{{ s.n }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("◌", "No data") }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mt-6">
+  {{ section("Overdue Findings", "Requires escalation",
+             actions='<a class="btn btn-outline btn-sm" href="' ~ url_for('auditor.export_csv', kind='findings') ~ '">⇩ Export CSV</a>'|safe) }}
+  {% if overdue %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead><tr><th>Code</th><th>Severity</th><th>Title</th><th>Identity</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for f in overdue %}
+            <tr>
+              <td><a href="{{ url_for('auditor.finding_detail', finding_id=f.id) }}">{{ f.code }}</a></td>
+              <td>{{ sev_badge(f.severity) }}</td>
+              <td class="cell-title">{{ f.title }}</td>
+              <td>{{ f.identity_name or '—' }}</td>
+              <td class="text-error">{{ reltime(f.due_at) }}</td>
+              <td>{{ status_badge(f.status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    {{ empty_state("✓", "Nothing overdue", "All findings are within their SLA.") }}
+  {% endif %}
+</div>
+
+<div class="grid grid-2 mt-6">
+  <div class="card">
+    {{ section("Scan Provenance", "Evidence of continuous monitoring") }}
+    {% if scans %}
+      <ul class="scan-list">
+        {% for s in scans %}
+          <li class="scan-row">
+            <span class="scan-id">#{{ s.id }}</span>
+            <span class="scan-meta">{{ s.trigger_source }} · {{ reltime(s.started_at) }}</span>
+            <span class="badge badge-info">{{ s.findings_created }} new</span>
+            {{ status_badge(s.status) }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {{ empty_state("🛰", "No scans recorded") }}
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {{ section("Certification Status") }}
+    {% if campaign %}
+      <p class="text-strong">{{ campaign.name }}</p>
+      {{ progress(campaign.progress_pct) }}
+      <p class="text-small mt-1">{{ campaign.decided }} / {{ campaign.total }} decided</p>
+      <a class="btn btn-outline btn-sm mt-4" href="{{ url_for('auditor.campaigns') }}">All campaigns →</a>
+    {% else %}
+      {{ empty_state("☑", "No active campaign") }}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

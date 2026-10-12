@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+
+{% block anon_content %}
+<div class="login-shell">
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="brand-mark lg">
+      <h1 class="login-title">{{ app_name }}</h1>
+      <p class="login-sub">{{ app_tagline }}</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'error' if category == 'error' else category }}">
+          <div class="alert-icon">{% if category == 'error' %}✗{% else %}ℹ️{% endif %}</div>
+          <div class="alert-content"><div class="alert-message">{{ message }}</div></div>
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="login-form" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label class="form-label required" for="username">Username or email</label>
+        <input id="username" name="username" type="text" required autofocus
+               autocomplete="username" placeholder="e.g. admin">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required" for="password">Password</label>
+        <input id="password" name="password" type="password" required
+               autocomplete="current-password" placeholder="••••••••">
+      </div>
+
+      <div class="checkbox-group">
+        <input id="remember" name="remember" type="checkbox">
+        <label for="remember">Keep me signed in</label>
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+    </form>
+
+    <details class="login-demo">
+      <summary>Demo credentials</summary>
+      <table class="demo-table">
+        <thead><tr><th>Mode</th><th>User</th><th>Password</th></tr></thead>
+        <tbody>
+          <tr><td>Admin</td><td><code>admin</code></td><td><code>Admin#2025</code></td></tr>
+          <tr><td>Auditor</td><td><code>auditor</code></td><td><code>Audit#2025</code></td></tr>
+          <tr><td>Analyst</td><td><code>analyst</code></td><td><code>Analyze#2025</code></td></tr>
+          <tr><td>Viewer</td><td><code>viewer</code></td><td><code>View#2025</code></td></tr>
+        </tbody>
+      </table>
+      <p class="text-small mt-2">
+        Seeded by <code>make seed</code> + <code>make passwords</code>.
+      </p>
+    </details>
+  </div>
+
+  <p class="login-foot">
+    Slate + Emerald design system · WCAG AAA · Identity Data &amp; Risk Management
+  </p>
+</div>
+{% endblock %}

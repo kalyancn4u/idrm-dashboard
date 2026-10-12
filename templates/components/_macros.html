@@ -1,0 +1,141 @@
+{# =========================================================================
+   IDRM — UI macros.  Import with:
+     {% from "components/_macros.html" import kpi, sev_badge, status_badge, ... %}
+   ========================================================================= #}
+
+{# ---------- KPI card ---------- #}
+{% macro kpi(label, value, meta=None, tone='emerald', icon=None, href=None) %}
+  {% if href %}<a class="kpi-card kpi-{{ tone }}" href="{{ href }}">{% else %}<div class="kpi-card kpi-{{ tone }}">{% endif %}
+    <div class="kpi-head">
+      <span class="kpi-label">{{ label }}</span>
+      {% if icon %}<span class="kpi-icon" aria-hidden="true">{{ icon }}</span>{% endif %}
+    </div>
+    <div class="kpi-value">{{ value }}</div>
+    {% if meta %}<div class="kpi-meta">{{ meta }}</div>{% endif %}
+  {% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+
+{# ---------- Severity badge ---------- #}
+{% macro sev_badge(severity) %}
+  {% set s = (severity or 'low')|lower %}
+  <span class="badge badge-{{ 'error' if s in ['critical','high'] else ('warning' if s == 'medium' else 'success') }}
+               sev sev-{{ s }}">
+    <span class="sev-dot" aria-hidden="true"></span>{{ s|upper }}
+  </span>
+{% endmacro %}
+
+
+{# ---------- Status badge ---------- #}
+{% macro status_badge(status) %}
+  {% set s = (status or 'open')|lower %}
+  {% set tone = {
+      'open': 'error',
+      'in_review': 'warning',
+      'remediated': 'success',
+      'accepted_risk': 'info',
+      'false_positive': 'review',
+      'closed': 'success',
+      'active': 'success',
+      'pending': 'warning',
+      'revoked': 'error',
+      'expired': 'info',
+      'locked': 'warning',
+      'disabled': 'error',
+      'orphaned': 'error',
+      'completed': 'success',
+      'draft': 'info',
+      'cancelled': 'error'
+  }.get(s, 'info') %}
+  <span class="badge badge-{{ tone }}">{{ s|replace('_', ' ') }}</span>
+{% endmacro %}
+
+
+{# ---------- Risk band ---------- #}
+{% macro risk_band(score) %}
+  {% set v = score|float %}
+  {% set band = 'critical' if v >= 60 else ('high' if v >= 35 else ('medium' if v >= 15 else 'low')) %}
+  <span class="risk-pill risk-{{ band }}">
+    <span class="risk-value">{{ '%.0f'|format(v) }}</span>
+    <span class="risk-bar"><i style="width: {{ [v, 100]|min }}%"></i></span>
+  </span>
+{% endmacro %}
+
+
+{# ---------- Empty state ---------- #}
+{% macro empty_state(icon, title, description=None, action_url=None, action_label=None) %}
+  <div class="state-container">
+    <div class="state-icon" aria-hidden="true">{{ icon }}</div>
+    <div class="state-title">{{ title }}</div>
+    {% if description %}<div class="state-description">{{ description }}</div>{% endif %}
+    {% if action_url %}<a class="btn btn-outline" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+  </div>
+{% endmacro %}
+
+
+{# ---------- Pagination ---------- #}
+{% macro pager(page, pages, endpoint, **kwargs) %}
+  {% if pages > 1 %}
+    {% set args = kwargs.copy() %}
+    <nav class="pager" aria-label="Pagination">
+      {% if page > 1 %}
+        <a class="pager-link" href="{{ url_for(endpoint, page=page-1, **args) }}">← Prev</a>
+      {% else %}
+        <span class="pager-link is-disabled">← Prev</span>
+      {% endif %}
+
+      <span class="pager-info">Page <strong>{{ page }}</strong> of {{ pages }}</span>
+
+      {% if page < pages %}
+        <a class="pager-link" href="{{ url_for(endpoint, page=page+1, **args) }}">Next →</a>
+      {% else %}
+        <span class="pager-link is-disabled">Next →</span>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endmacro %}
+
+
+{# ---------- Progress bar ---------- #}
+{% macro progress(pct, tone='emerald') %}
+  <div class="progress progress-{{ tone }}" role="progressbar" aria-valuenow="{{ pct }}"
+       aria-valuemin="0" aria-valuemax="100">
+    <i style="width: {{ pct }}%"></i>
+  </div>
+{% endmacro %}
+
+
+{# ---------- Relative time ---------- #}
+{% macro reltime(dt) %}
+  {% if dt %}
+    <time datetime="{{ dt.isoformat() }}" title="{{ dt.strftime('%Y-%m-%d %H:%M:%S %Z') }}">
+      {{ dt.strftime('%Y-%m-%d %H:%M') }}
+    </time>
+  {% else %}
+    <span class="text-muted">—</span>
+  {% endif %}
+{% endmacro %}
+
+
+{# ---------- Section header ---------- #}
+{% macro section(title, subtitle=None, actions=None) %}
+  <header class="section-head">
+    <div>
+      <h2 class="section-title">{{ title }}</h2>
+      {% if subtitle %}<p class="section-sub">{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if actions %}<div class="section-actions">{{ actions }}</div>{% endif %}
+  </header>
+{% endmacro %}
+
+
+{# ---------- Page header ---------- #}
+{% macro page_head(title, subtitle=None, badge=None) %}
+  <header class="page-head">
+    <div>
+      <h1 class="page-title">{{ title }}</h1>
+      {% if subtitle %}<p class="page-sub">{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if badge %}<div class="page-badge">{{ badge }}</div>{% endif %}
+  </header>
+{% endmacro %}

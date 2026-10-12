@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "components/_macros.html" import sev_badge, status_badge, empty_state, pager, reltime, page_head %}
+
+{% block title %}Findings · Auditor{% endblock %}
+{% block breadcrumb %}
+  <span class="crumb"><a href="{{ url_for('auditor.dashboard') }}">Auditor</a></span>
+  <span class="crumb-sep">/</span>
+  <span class="crumb-current">Findings</span>
+{% endblock %}
+
+{% block content %}
+
+{{ page_head("Findings Register", total ~ " matching findings",
+             badge='<span class="mode-badge mode-auditor">READ ONLY</span>'|safe) }}
+
+<form class="filter-bar card" method="get">
+  <div class="filter-grid">
+    <div class="form-group">
+      <label class="form-label" for="q">Search</label>
+      <input id="q" name="q" type="text" value="{{ q }}">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="status">Status</label>
+      <select id="status" name="status">
+        {% for s in ['open','all','in_review','remediated','accepted_risk','false_positive','closed'] %}
+          <option value="{{ s }}" {{ 'selected' if status == s }}>{{ s.replace('_',' ') }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="severity">Severity</label>
+      <select id="severity" name="severity">
+        <option value="">All</option>
+        {% for s in ['critical','high','medium','low'] %}
+          <option value="{{ s }}" {{ 'selected' if severity == s }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="system">System</label>
+      <select id="system" name="system">
+        <option value="">All</option>
+        {% for s in systems %}<option value="{{ s }}" {{ 'selected' if system == s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-primary" type="submit">Apply</button>
+      <a class="btn btn-outline" href="{{ url_for('auditor.export_csv', kind='findings') }}">⇩ CSV</a>
+    </div>
+  </div>
+</form>
+
+<div class="card mt-6">
+  {% if rows %}
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr><th>Code</th><th>Severity</th><th>Title</th><th>Identity</th>
+              <th>System</th><th>Rule</th><th>Detected</th><th>Due</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr class="{{ 'row-overdue' if r.overdue }}">
+              <td><a href="{{ url_for('auditor.finding_detail', finding_id=r.id) }}">{{ r.code }}</a></td>
+              <td>{{ sev_badge(r.severity) }}</td>
+              <td class="cell-title">{{ r.title }}</td>
+              <td>{{ r.identity_name or '—' }}</td>
+              <td><span class="sys-tag">{{ r.system_code }}</span></td>
+              <td><code class="rule-code">{{ r.rule_code }}</code></td>
+              <td class="text-muted">{{ reltime(r.detected_at) }}</td>
+              <td class="text-muted">{{ reltime(r.due_at) }}</td>
+              <td>{{ status_badge(r.status) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ pager(page, pages, 'auditor.findings', q=q, status=status, severity=severity, system=system) }}
+  {% else %}
+    {{ empty_state("✓", "No findings match") }}
+  {% endif %}
+</div>
+
+{% endblock %}

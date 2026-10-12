@@ -1,0 +1,55 @@
+# =============================================================================
+#  IDRM — local infrastructure
+#  `docker compose up -d`  →  Postgres on :5432, Redis (optional) on :6379
+# =============================================================================
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: idrm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: idrm
+      POSTGRES_PASSWORD: idrm
+      POSTGRES_DB: idrm
+      # Speeds up initdb + gives deterministic collation
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - idrm-pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro   # auto-runs *.sql on FIRST boot only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idrm -d idrm"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [idrm]
+
+  redis:
+    image: redis:7-alpine
+    container_name: idrm-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - idrm-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [idrm]
+    profiles: ["cache"]     # only starts with:  docker compose --profile cache up -d
+
+volumes:
+  idrm-pgdata:
+  idrm-redisdata:
+
+networks:
+  idrm:
+    driver: bridge

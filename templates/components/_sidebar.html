@@ -1,0 +1,82 @@
+{# Role-aware navigation. #}
+<aside class="app-sidebar" id="sidebar" aria-label="Primary">
+  <div class="sidebar-brand">
+    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="" class="brand-mark">
+    <div class="brand-text">
+      <span class="brand-name">{{ app_name }}</span>
+      <span class="brand-tag">{{ current_user.role|upper }} MODE</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    {% if current_user.role in ['admin', 'analyst'] %}
+      <p class="nav-group">Operations</p>
+      <a class="sidebar-link {{ 'active' if nav_active('/admin/') and request.path == '/admin/' }}"
+         href="{{ url_for('admin.dashboard') }}">
+        <span class="nav-ico">◧</span> Overview
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/admin/identities') }}"
+         href="{{ url_for('admin.identities') }}">
+        <span class="nav-ico">◉</span> Identities
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/admin/grants') }}"
+         href="{{ url_for('admin.grants') }}">
+        <span class="nav-ico">⇄</span> Access Grants
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/admin/findings') }}"
+         href="{{ url_for('admin.findings') }}">
+        <span class="nav-ico">⚑</span> Findings
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/admin/reviews') }}"
+         href="{{ url_for('admin.reviews') }}">
+        <span class="nav-ico">☑</span> Certifications
+      </a>
+
+      <p class="nav-group">Assurance</p>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/audit-trail') }}"
+         href="{{ url_for('auditor.audit_trail') }}">
+        <span class="nav-ico">◷</span> Audit Trail
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/exports') }}"
+         href="{{ url_for('auditor.exports') }}">
+        <span class="nav-ico">⇩</span> Exports
+      </a>
+    {% else %}
+      <p class="nav-group">Assurance</p>
+      <a class="sidebar-link {{ 'active' if request.path == '/auditor/' }}"
+         href="{{ url_for('auditor.dashboard') }}">
+        <span class="nav-ico">◧</span> Overview
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/findings') }}"
+         href="{{ url_for('auditor.findings') }}">
+        <span class="nav-ico">⚑</span> Findings
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/campaigns') }}"
+         href="{{ url_for('auditor.campaigns') }}">
+        <span class="nav-ico">☑</span> Certifications
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/audit-trail') }}"
+         href="{{ url_for('auditor.audit_trail') }}">
+        <span class="nav-ico">◷</span> Audit Trail
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/evidence') }}"
+         href="{{ url_for('auditor.evidence') }}">
+        <span class="nav-ico">❐</span> Evidence
+      </a>
+      <a class="sidebar-link {{ 'active' if nav_active('/auditor/exports') }}"
+         href="{{ url_for('auditor.exports') }}">
+        <span class="nav-ico">⇩</span> Exports
+      </a>
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-foot">
+    <div class="mode-chip mode-{{ current_user.role }}">
+      {% if current_user.role == 'auditor' %}🔍 Read-only assurance
+      {% elif current_user.role == 'admin' %}⚙ Full control
+      {% elif current_user.role == 'analyst' %}🔧 Investigate & remediate
+      {% else %}👁 View only{% endif %}
+    </div>
+    <p class="sidebar-version">v1.0.0</p>
+  </div>
+</aside>

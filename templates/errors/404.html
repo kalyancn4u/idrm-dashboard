@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Not Found{% endblock %}
+{% block content %}
+<div class="state-container error-state">
+  <div class="state-icon">🧭</div>
+  <div class="state-title">404 — Not found</div>
+  <div class="state-description">The resource you requested does not exist or has been removed.</div>
+  <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">Return to dashboard</a>
+</div>
+{% endblock %}
+{% block anon_content %}
+<div class="state-container error-state">
+  <div class="state-icon">🧭</div>
+  <div class="state-title">404 — Not found</div>
+  <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Sign in</a>
+</div>
+{% endblock %}

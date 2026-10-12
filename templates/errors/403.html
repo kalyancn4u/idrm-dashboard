@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Forbidden{% endblock %}
+{% block content %}
+<div class="state-container error-state">
+  <div class="state-icon">🚫</div>
+  <div class="state-title">403 — Access denied</div>
+  <div class="state-description">
+    Your role (<strong>{{ current_user.role if current_user.is_authenticated else 'anonymous' }}</strong>)
+    is not permitted to view this resource.
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">Return to dashboard</a>
+</div>
+{% endblock %}
+{% block anon_content %}
+<div class="state-container error-state">
+  <div class="state-icon">🚫</div>
+  <div class="state-title">403 — Access denied</div>
+  <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Sign in</a>
+</div>
+{% endblock %}
