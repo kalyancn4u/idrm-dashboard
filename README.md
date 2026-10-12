@@ -225,7 +225,7 @@ idrm/
 | Why | Server-side session store, cached KPI aggregates, rate-limiting login attempts |
 | Behaviour if absent | App degrades gracefully: falls back to signed cookies + in-process LRU cache. Everything still works |
 
-### 3.4 Databases deliberately **NOT** used (and why)
+### 1.3.4 Databases deliberately **NOT** used (and why)
 
 | Considered | Verdict | Reason |
 |---|---|---|
