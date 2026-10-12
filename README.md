@@ -613,6 +613,23 @@ MIT. See `LICENSE` if present, or treat as MIT for evaluation purposes.
 
 ---
 
+## 15. Where to Go From Here
+
+Everything is wired and ready. Here are the most useful next steps, depending on what you want to do.
+
+- **Launch it locally** — Run `make setup` then `make run`, and log in with the demo credentials to explore both consoles.
+- **Understand the risk engine** — Read `app/services/risk_engine.py` and the corresponding rules in `sql/04_seed_reference.sql` to see how findings are generated.
+- **Extend the data model** — Add a new rule by inserting a row into `risk_rule` and decorating a Python function with `@rule("RR-XXX-000")`.
+- **Trace an audit event** — Open the audit trail in Auditor mode, filter by `entity_type = finding`, and examine the before/after JSONB snapshots.
+- **Customize the look** — Edit the design tokens in `app/static/css/design-system.css` and the macros in `app/templates/components/_macros.html`.
+- **Deploy with confidence** — Follow `docs/10-operations-runbook.md` for backup, monitoring, and production configuration.
+
+---
+
+**Optimization Tip:** You can adjust the dormancy and SLA windows by editing `IDRM_DORMANCY_DAYS` and the `IDRM_SLA_*_DAYS` variables in your `.env` file — no code changes required. The sample data in `sql/05_seed_sample.sql` intentionally includes risky scenarios to make the dashboards interesting; replace it with your own data when you're ready.
+
+---
+
 <div align="center">
 
 **IDRM** · Identity Data & Risk Management
